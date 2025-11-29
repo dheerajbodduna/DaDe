@@ -95,8 +95,8 @@ def result_2(input_df):
     print("Starting result_2")
     print("------------------")
 
-    df = input_df.groupBy("purpose").agg(sum(col("not_fully_paid") / count("*"))).alias("default_rate")
-    df = df.withColumn("default_rate", round((col("default_rate"), 2)))
+    df = input_df.groupBy("purpose").agg((sum(col("not_fully_paid") / count("*"))).alias("default_rate")
+    df = df.withColumn("default_rate", round(col("default_rate"), 2))
 
     return df
 
@@ -119,6 +119,7 @@ df redshift_load(data):
     else:
         print("Empty dataframe,hence cannot load the data")
 
+
 # Main Code Here : [def main()] 
 
 
@@ -139,7 +140,7 @@ from sagemaker import get_execution_role
 
 warnings.filterwarnings('ignore')
 
-# Task 1 - Data Loading
+# Step 1 - Data Loading
 # Hint: sample s3 URL - "s3://bucket_name/folder_name/file_name.csv" 
 
 import numpy as np
@@ -158,14 +159,15 @@ data_location = f"s3://{bucket_name}/{folder_name}/{data_key}"
 data = pd.read_csv(data_location)
 data.head()
 
-# Task 2 - Feature Engineering 
+# Step 2 - Feature Engineering 
 
 data = pd.get_dummies(data, columns=["purpose"], dtype=int)
 data.head()
 
-# Task 3 - Data preprocessing 
+# Step 3 - Data preprocessing 
 
 from sklearn.utils import resample 
+from sklearn.utils import shuffle
 
 print(data["not_fully_paid"].value_counts())
 
@@ -177,9 +179,10 @@ df_minority_upsampled = resample(df_minority, replace=True, n_samples= df_majori
 
 # Concatenate the upsampled data records with the majority class records and shuffle the resultant dataframe
 df_balanced = pd.concat([df_majority, df_minority_unsampled])
+df_balanced = shuffle(df_balanced, random_state=42)
 print(df_balanced['not_fully_paid].value_counts())
 
-# Task 4 - Model training 
+# Step 4 - Model training 
 
 # Create X and y for Train-Test split
 
@@ -195,7 +198,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_
 rf = RandomForestClassifier(random_state=42)
 rf.fit(X_train, y_train)
 
-# Task 5 - Model evaluation 
+# Step 5 - Model evaluation 
 
 # Predict using the training RandomForestClassifier Model
 from sklearn.metrics import classification_report
@@ -204,14 +207,14 @@ y_pred = rf.predict(X_test)
 # Print the Classification report 
 print(classification_report(y_test, y_pred))
 
-# Task 6 - Saving the model to s3
+# Step 6 - Saving the model to s3
 
 # Uploading the model to s3 using boto3
 import boto3
 import joblib
 import tempfile
 
-with tempfile.NamedTemporaryFile as tmp:
+with tempfile.NamedTemporaryFile() as tmp:
     joblib.dump(rf, tmp.name)
     tmp.flush()
 
